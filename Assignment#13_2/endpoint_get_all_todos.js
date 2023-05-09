@@ -4,7 +4,7 @@ module.exports = (req, res) => {
 	const token = req.cookies.user;
 
 	var decoded = jwt.verify(token, "ZJGX1QL7ri6BGJWj3t");
-	connection.query("SELECT * FROM items WHERE owner_id = ?" [decoded.userId], (err, rows) => {
+	connection.query("SELECT * FROM items WHERE owner_id = ?", [decoded.userId], (err, rows) => {
 		// Check if cannot find the data in the database then return the error
 		if (err) {
 			res.json({
