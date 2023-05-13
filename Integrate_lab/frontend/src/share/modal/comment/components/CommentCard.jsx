@@ -1,23 +1,93 @@
 import { Button, Card, TextField, Typography } from '@mui/material';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useContext, useState } from 'react';
+import Cookies from 'js-cookie';
+import Axios from '../../../AxiosInstance';
+import { AxiosError } from 'axios';
+import GlobalContext from '../../../Context/GlobalContext';
 
-const CommentCard = ({ comment = { id: -1, msg: '' } }) => {
+const CommentCard = ({ comment = { id: -1, msg: '' }, setComments = () => {} }) => {
   const [isConfirm, setIsConfirm] = useState(false);
   const [functionMode, setFunctionMode] = useState('update');
   const [msg, setMsg] = useState(comment.msg);
+  const { setStatus } = useContext(GlobalContext);
 
-  const submit = useCallback(() => {
+  const submit = useCallback(async () => {
     if (functionMode === 'update') {
-      // TODO implement update logic
-      console.log('update');
+      try {
+        const userToken = Cookies.get('UserToken');
+        const response = await Axios.patch(
+          '/comment',
+          {
+            text: msg,
+            commentId: comment.id,
+          },
+          {
+            headers: { Authorization: `Bearer ${userToken}` },
+          }
+        );
+
+        if (response.data.success) {
+          comment.msg = response.data.data.text;
+          setStatus({
+            severity: 'success',
+            msg: 'Comment updated successfully',
+          });
+          cancelAction();
+        } else {
+          setStatus({
+            severity: 'error',
+            msg: 'Failed to update comment',
+          });
+        }
+      } catch (error) {
+        if (error instanceof AxiosError && error.response) {
+          const errorMessage = error.response.data.error || error.message;
+          setStatus({
+            severity: 'error',
+            msg: errorMessage,
+          });
+        } else {
+          setStatus({
+            severity: 'error',
+            msg: error.message,
+          });
+        }
+      }
     } else if (functionMode === 'delete') {
-      // TODO implement delete logic
-      console.log('delete');
-    } else {
-      // TODO setStatus (snackbar) to error
-      console.log('error');
+      try {
+        const userToken = Cookies.get('UserToken');
+        const response = await Axios.delete('/comment', {
+          headers: { Authorization: `Bearer ${userToken}` },
+          data: { commentId: comment.id },
+        });
+        if (response.data.success) {
+          setComments((comments) => comments.filter((c) => c.id !== comment.id));
+          setStatus({
+            severity: 'success',
+            msg: 'Comment deleted successfully',
+          });
+          cancelAction();
+        } else {
+          setStatus({
+            severity: 'error',
+            msg: 'Failed to delete comment',
+          });
+        }
+      } catch (error) {
+        if (error instanceof AxiosError && error.response) {
+          setStatus({
+            severity: 'error',
+            msg: error.response.data.error || JSON.stringify(error.response.data),
+          });
+        } else {
+          setStatus({
+            severity: 'error',
+            msg: error.message,
+          });
+        }
+      }
     }
-  }, [functionMode]);
+  }, [functionMode, msg, setComments, comment, setStatus]);
 
   const changeMode = (mode) => {
     setFunctionMode(mode);
